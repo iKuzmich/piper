@@ -44,6 +44,7 @@ setup(
     python_requires=">=3.9",
     install_requires=[
         "onnxruntime>=1,<2",
+        'nltk'
     ],
     extras_require={
         "train": [

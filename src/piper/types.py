@@ -33,7 +33,6 @@ class SkidbladnirTextAlignment:
     sentences: Sequence[SkidbladnirSentenceAlignment]
     original_text: str
 
-
 @dataclass
 class AudioChunk:
     """Chunk of raw audio."""

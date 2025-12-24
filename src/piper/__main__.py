@@ -1,6 +1,8 @@
 """Piper main script."""
 
 import argparse
+import base64
+import json
 import logging
 import shutil
 import sys
@@ -90,7 +92,10 @@ def main() -> None:
     )
     #
     parser.add_argument(
-        "--include-durations", action="store_true", help="Include durations for word boundaries"
+        "--include-durations",
+        "--include_durations",
+        action="store_true",
+        help="Include durations for word boundaries",
     )
     #
     parser.add_argument(
@@ -165,7 +170,9 @@ def main() -> None:
     def lines_to_wav() -> None:
         wav_params_set = False
         for line in lines():
-            for i, audio_chunk in enumerate(voice.synthesize(line, syn_config, include_alignment)):
+            for i, audio_chunk in enumerate(
+                voice.synthesize(line, syn_config, include_alignment)
+            ):
                 if not wav_params_set:
                     wav_file.setframerate(audio_chunk.sample_rate)
                     wav_file.setsampwidth(audio_chunk.sample_width)
@@ -184,15 +191,59 @@ def main() -> None:
         # Write raw audio to stdout as its produced
         for line in lines():
             audio_stream = voice.synthesize(line, syn_config, include_alignment)
-            for i, audio_chunk in enumerate(audio_stream):
-                if i > 0:
-                    sys.stdout.buffer.write(silence_int16_bytes)
+            if include_alignment:
+                for i, audio_chunk in enumerate(audio_stream):
+                    audio_bytes = audio_chunk.audio_int16_bytes
+                    if i > 0:
+                        audio_bytes = audio_bytes + silence_int16_bytes
 
-                sys.stdout.buffer.write(audio_chunk.audio_int16_bytes)
-                sys.stdout.buffer.flush()
+                    chunk_data = {
+                        "sample_rate": audio_chunk.sample_rate,
+                        "sample_width": audio_chunk.sample_width,
+                        "sample_channels": audio_chunk.sample_channels,
+                        "audio_bytes": base64.b64encode(audio_bytes).decode("utf-8"),
+                    }
 
-                if include_alignment and audio_chunk.skidbladnir_alignments is not None:
-                    print(audio_chunk.skidbladnir_alignments)
+                    if (
+                        include_alignment
+                        and audio_chunk.skidbladnir_alignments is not None
+                    ):
+                        alignments = audio_chunk.skidbladnir_alignments
+                        chunk_data["alignments"] = {
+                            "original_text": alignments.original_text,
+                            "sentences": [
+                                {
+                                    "sentence_index": sent.sentence_index,
+                                    "words": [
+                                        {
+                                            "word": word.word,
+                                            "word_index": word.word_index,
+                                            "phonemes": list(word.phonemes),
+                                            "phoneme_ids": list(word.phoneme_ids),
+                                            "duration": word.duration,
+                                        }
+                                        for word in sent.words
+                                    ],
+                                }
+                                for sent in alignments.sentences
+                            ],
+                        }
+
+                    json_str = json.dumps(chunk_data)
+
+                    sys.stdout.buffer.write(json_str.encode("utf-8"))
+                    sys.stdout.buffer.write(b"\n")
+                    sys.stdout.buffer.flush()
+            else:
+                for i, audio_chunk in enumerate(audio_stream):
+                    if i > 0:
+                        sys.stdout.buffer.write(silence_int16_bytes)
+
+                    sys.stdout.buffer.write(audio_chunk.audio_int16_bytes)
+                    sys.stdout.buffer.flush()
+
+                # if include_alignment and audio_chunk.skidbladnir_alignments is not None:
+                #     print(audio_chunk.skidbladnir_alignments)
 
     elif args.output_dir:
         # Write multiple WAV files to a directory, one per line
@@ -219,12 +270,17 @@ def main() -> None:
             # Play audio using ffplay
             with AudioPlayer(voice.config.sample_rate) as player:
                 for line in lines():
-                    for i, audio_chunk in enumerate(voice.synthesize(line, syn_config, include_alignment)):
+                    for i, audio_chunk in enumerate(
+                        voice.synthesize(line, syn_config, include_alignment)
+                    ):
                         if i > 0:
                             player.play(silence_int16_bytes)
 
                         player.play(audio_chunk.audio_int16_bytes)
-                        if include_alignment and audio_chunk.skidbladnir_alignments is not None:
+                        if (
+                            include_alignment
+                            and audio_chunk.skidbladnir_alignments is not None
+                        ):
                             print(audio_chunk.skidbladnir_alignments)
         else:
             # Write to WAV file

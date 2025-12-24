@@ -15,8 +15,7 @@
                 "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx",
                 "--config",
                 "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx.json",
-                "--output_file",
-                "/home/ivan/Workspace/Sensotec/Piper/output/debug_output.wav",
+                "--output-raw",
                 "--include-durations"
             ]
         },

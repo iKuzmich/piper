@@ -31,10 +31,16 @@ if exist dist rmdir /s /q dist
 if exist src\piper.egg-info rmdir /s /q src\piper.egg-info
 
 echo.
-echo [3/5] Building wheel package...
-python -m build
+echo [3/5] Building wheel package with CMake (this may take several minutes)...
+echo This will compile the espeakbridge C extension and download espeak-ng...
+python setup.py bdist_wheel
 if errorlevel 1 (
     echo ERROR: Build failed
+    echo.
+    echo Common issues:
+    echo - Visual Studio Build Tools not installed
+    echo - CMake not in PATH
+    echo - Git not available (needed to download espeak-ng)
     pause
     exit /b 1
 )
@@ -48,7 +54,16 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/5] Build complete!
+echo [5/5] Verifying build...
+echo.
+echo Checking for compiled extension in build output...
+if exist "_skbuild\win*\cmake-build\espeakbridge.pyd" (
+    echo [OK] espeakbridge.pyd was compiled successfully
+) else (
+    echo [WARNING] espeakbridge.pyd not found in build directory
+)
+echo.
+echo Build complete!
 echo.
 echo Distribution package created in: dist\
 dir dist\*.whl
@@ -57,7 +72,10 @@ echo ========================================
 echo Next Steps:
 echo ========================================
 echo 1. Install the wheel package:
-echo    pip install dist\piper_tts-1.3.1-*.whl
+echo    pip install --force-reinstall dist\piper_tts-1.3.1-*.whl
+echo.
+echo    Note: The wheel should be platform-specific (e.g., win_amd64.whl)
+echo    NOT py3-none-any.whl
 echo.
 echo 2. Download a voice model from:
 echo    https://github.com/rhasspy/piper/releases

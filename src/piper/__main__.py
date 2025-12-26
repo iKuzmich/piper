@@ -209,7 +209,7 @@ def main() -> None:
                         and audio_chunk.skidbladnir_alignments is not None
                     ):
                         alignments = audio_chunk.skidbladnir_alignments
-                        chunk_data["alignments"] = {
+                        chunk_data["skidbladnir_alignments"] = {
                             "original_text": alignments.original_text,
                             "sentences": [
                                 {

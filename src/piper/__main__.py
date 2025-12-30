@@ -221,7 +221,7 @@ def main() -> None:
                                             "phonemes": list(word.phonemes),
                                             "phoneme_ids": list(word.phoneme_ids),
                                             "duration": word.duration,
-                                            "timeline_offest": word.timeline_offest,
+                                            "timeline_offset": word.timeline_offset,
                                         }
                                         for word in sent.words
                                     ],

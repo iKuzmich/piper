@@ -455,7 +455,7 @@ class PiperVoice:
                             phonemes = word_phonemes,
                             phoneme_ids = word_phoneme_ids,
                             duration = word_num_samples / self.config.sample_rate,
-                            timeline_offest = sum(phoneme_id_samples[0:start_phoneme_id_idx]) / self.config.sample_rate
+                            timeline_offset = sum(phoneme_id_samples[0:start_phoneme_id_idx]) / self.config.sample_rate
                         ),
                     )
                     current_word_idx += 1

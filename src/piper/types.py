@@ -20,7 +20,7 @@ class SkidbladnirWordAlignment:
     phonemes: Sequence[str]
     phoneme_ids: Sequence[int]
     duration: float
-    timeline_offest: float
+    timeline_offset: float
 
 
 @dataclass

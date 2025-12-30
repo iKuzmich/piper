@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Piper",
+            "name": "Debug Linux",
             "type": "debugpy",
             "request": "launch",
             "module": "piper",
@@ -20,18 +20,17 @@
             ]
         },
         {
-            "name": "Debug Piper Src",
+            "name": "Debug Windows",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/piper",
+            "module": "piper",
             "console": "integratedTerminal",
              "args": [
                 "--model",
-                "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx",
+                "D:/Workspace/Sensotec/Skidbladnir/Skidbladnir.Tests.Piper/bin/Debug/net9.0/lib/model/en-US/Amy/en_US-amy-medium.onnx",
                 "--config",
-                "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx.json",
+                "D:/Workspace/Sensotec/Skidbladnir/Skidbladnir.Tests.Piper/bin/Debug/net9.0/lib/model/en-US/Amy/en_US-amy-medium.onnx.json",
                 "--output-raw",
-                "/home/ivan/Workspace/Sensotec/Piper/output/debug_output.wav",
                 "--include-durations"
             ]
         }

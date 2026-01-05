@@ -235,6 +235,18 @@ def main() -> None:
                     sys.stdout.buffer.write(json_str.encode("utf-8"))
                     sys.stdout.buffer.write(b"\n")
                     sys.stdout.buffer.flush()
+
+                chunk_data = {
+                    "sample_rate": 0,
+                    "sample_width": 0,
+                    "sample_channels": 0,
+                    "audio_bytes": None,
+                }
+
+                json_str = json.dumps(chunk_data)
+                sys.stdout.buffer.write(json_str.encode("utf-8"))
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
             else:
                 for i, audio_chunk in enumerate(audio_stream):
                     if i > 0:

@@ -64,16 +64,13 @@ else
     echo ""
 fi
 
-# Step 2: Setup Python virtual environment
+# Step 2: Clean up any existing virtual environment
 echo ""
-echo "Step 2: Setting up Python virtual environment..."
-if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
+echo "Step 2: Preparing build environment..."
+if [ -d ".venv" ]; then
+    echo "Removing existing .venv directory..."
+    rm -rf .venv
 fi
-source .venv/bin/activate
-
-# Upgrade pip
-pip install --upgrade pip setuptools wheel
 
 # Step 3: Build the C++ components
 echo ""

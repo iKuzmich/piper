@@ -187,7 +187,7 @@ except ImportError:
     sys.exit(1)
 
 a = Analysis(
-    [str(piper_package / '__main__.py')],
+    ['piper_cli.py'],
     pathex=[],
     binaries=binaries,
     datas=piper_datas,

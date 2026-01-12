@@ -79,6 +79,17 @@ echo "This may take 5-10 minutes..."
 ./script/setup --dev
 ./script/dev_build
 
+# Activate the virtual environment created by script/setup
+echo ""
+echo "Activating virtual environment..."
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+    echo "✓ Virtual environment activated: $(which python3)"
+else
+    echo "ERROR: Virtual environment not found at .venv/bin/activate"
+    exit 1
+fi
+
 # Step 4: Package the Python wheel
 echo ""
 echo "Step 4: Packaging Python wheel..."
@@ -87,7 +98,7 @@ echo "Step 4: Packaging Python wheel..."
 # Step 5: Install the wheel
 echo ""
 echo "Step 5: Installing piper package..."
-pip install dist/piper_tts-*.whl
+pip install --upgrade dist/piper_tts-*.whl
 
 # Step 6: Download NLTK data
 echo ""

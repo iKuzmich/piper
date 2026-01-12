@@ -51,10 +51,10 @@ fi
 # Step 1: Install system dependencies
 echo "Step 1: Installing system dependencies..."
 if command -v apt-get &> /dev/null; then
-    sudo apt-get install -y build-essential cmake ninja-build python3-dev python3-pip python3.12-venv
+    apt-get install -y build-essential cmake ninja-build python3-dev python3-pip python3.12-venv
 elif command -v yum &> /dev/null; then
-    sudo yum groupinstall -y "Development Tools"
-    sudo yum install -y cmake ninja-build python3-devel python3-pip python3.12-venv
+    yum groupinstall -y "Development Tools"
+    yum install -y cmake ninja-build python3-devel python3-pip python3.12-venv
 else
     echo "WARNING: Could not detect package manager. Please install manually:"
     echo "  - build-essential / gcc/g++"

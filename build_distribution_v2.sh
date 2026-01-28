@@ -25,7 +25,7 @@ fi
 # Step 1: Install system dependencies
 echo "Step 1: Installing system dependencies..."
 if command -v apt-get &> /dev/null; then
-    apt-get install -y cmake python3-dev python3-pip python3.12-venv
+    apt-get install -y cmake ninja-build python3-dev python3-pip python3.12-venv
 fi
 
 # Step 2: Clean up any existing virtual environment

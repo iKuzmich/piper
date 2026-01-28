@@ -14,28 +14,6 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Clean up any existing virtual environment
-echo ""
-echo "Preparing build environment..."
-if [ -d ".venv" ]; then
-    echo "Removing existing .venv directory..."
-    rm -rf .venv
-fi
-
-echo ""
-echo "Creating virtual environment..."
-python3 -m venv .venv
-
-echo ""
-echo "Activating virtual environment..."
-if [ -f ".venv/bin/activate" ]; then
-    source .venv/bin/activate
-    echo "✓ Virtual environment activated: $(which python3)"
-else
-    echo "ERROR: Virtual environment not found at .venv/bin/activate"
-    exit 1
-fi
-
 echo "[1/5] Installing build dependencies..."
 python3 -m pip install --upgrade pip
 python3 -m pip install build wheel scikit-build cmake ninja

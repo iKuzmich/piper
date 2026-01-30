@@ -335,11 +335,13 @@ class PiperVoice:
                         for phoneme in itertools.chain([BOS], phonemes, [EOS]):
                             expected_ids = self.config.phoneme_id_map.get(phoneme, [])
 
-                    ids_to_check: Sequence[int]
-                    if phoneme != EOS:
-                        ids_to_check = list(itertools.chain(expected_ids, pad_ids))
-                    else:
-                        ids_to_check = expected_ids
+                            ids_to_check: Sequence[int]
+                            if phoneme != EOS:
+                                ids_to_check = list(
+                                    itertools.chain(expected_ids, pad_ids)
+                                )
+                            else:
+                                ids_to_check = expected_ids
 
                             start_phoneme_id_idx = phoneme_id_idx
                             for phoneme_id in ids_to_check:
@@ -475,12 +477,15 @@ class PiperVoice:
                     word_num_samples = sum(word_phoneme_id_samples)
                     word_alignments.append(
                         SkidbladnirWordAlignment(
-                            word = word,
-                            word_index = current_word_idx,
-                            phonemes = word_phonemes,
-                            phoneme_ids = word_phoneme_ids,
-                            duration = word_num_samples / self.config.sample_rate,
-                            timeline_offset = sum(phoneme_id_samples[0:start_phoneme_id_idx]) / self.config.sample_rate
+                            word=word,
+                            word_index=current_word_idx,
+                            phonemes=word_phonemes,
+                            phoneme_ids=word_phoneme_ids,
+                            duration=word_num_samples / self.config.sample_rate,
+                            timeline_offset=sum(
+                                phoneme_id_samples[0:start_phoneme_id_idx]
+                            )
+                            / self.config.sample_rate,
                         ),
                     )
                     current_word_idx += 1

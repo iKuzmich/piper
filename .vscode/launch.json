@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Linux",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "piper",
+            "console": "integratedTerminal",
+             "args": [
+                "--model",
+                "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx",
+                "--config",
+                "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx.json",
+                "--output-raw",
+                "--include-durations"
+            ]
+        },
+        {
+            "name": "Debug Windows",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "piper",
+            "console": "integratedTerminal",
+             "args": [
+                "--model",
+                "D:/Workspace/Sensotec/Skidbladnir/Skidbladnir.Tests.Piper/bin/Debug/net9.0/lib/model/en-US/Amy/en_US-amy-medium.onnx",
+                "--config",
+                "D:/Workspace/Sensotec/Skidbladnir/Skidbladnir.Tests.Piper/bin/Debug/net9.0/lib/model/en-US/Amy/en_US-amy-medium.onnx.json",
+                "--output-raw",
+                "--include-durations"
+            ]
+        }
+    ]
+}

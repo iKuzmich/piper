@@ -99,6 +99,13 @@ def main() -> None:
     )
     #
     parser.add_argument(
+        "--send-finish-chunk",
+        "--send_finish_chunk",
+        action="store_true",
+        help="Include durations for word boundaries",
+    )
+    #
+    parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
     )
     args, unknown_args = parser.parse_known_args()
@@ -166,6 +173,7 @@ def main() -> None:
     )
 
     include_alignment = args.include_durations
+    send_finish_chunk = args.send_finish_chunk
 
     def lines_to_wav() -> None:
         wav_params_set = False
@@ -236,17 +244,18 @@ def main() -> None:
                     sys.stdout.buffer.write(b"\n")
                     sys.stdout.buffer.flush()
 
-                chunk_data = {
-                    "sample_rate": 0,
-                    "sample_width": 0,
-                    "sample_channels": 0,
-                    "audio_bytes": None,
-                }
+                if send_finish_chunk:
+                    chunk_data = {
+                        "sample_rate": 0,
+                        "sample_width": 0,
+                        "sample_channels": 0,
+                        "audio_bytes": None,
+                    }
 
-                json_str = json.dumps(chunk_data)
-                sys.stdout.buffer.write(json_str.encode("utf-8"))
-                sys.stdout.buffer.write(b"\n")
-                sys.stdout.buffer.flush()
+                    json_str = json.dumps(chunk_data)
+                    sys.stdout.buffer.write(json_str.encode("utf-8"))
+                    sys.stdout.buffer.write(b"\n")
+                    sys.stdout.buffer.flush()
             else:
                 for i, audio_chunk in enumerate(audio_stream):
                     if i > 0:

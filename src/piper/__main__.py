@@ -99,10 +99,10 @@ def main() -> None:
     )
     #
     parser.add_argument(
-        "--send-finish-chunk",
-        "--send_finish_chunk",
+        "--volatile-length-scale",
+        "--volatile_length_scale",
         action="store_true",
-        help="Include durations for word boundaries",
+        help="Ability to change reading speed for the same process",
     )
     #
     parser.add_argument(
@@ -164,6 +164,9 @@ def main() -> None:
         normalize_audio=(not args.no_normalize),
         volume=args.volume,
     )
+    is_syn_config_const = not args.volatile_length_scale
+    current_length_scale = args.length_scale
+    current_syn_config = syn_config
 
     wav_file: wave.Wave_write
 
@@ -173,7 +176,24 @@ def main() -> None:
     )
 
     include_alignment = args.include_durations
-    send_finish_chunk = args.send_finish_chunk
+
+    def get_synthesis_confing(length_scale) -> SynthesisConfig:
+        if is_syn_config_const: 
+            return syn_config
+        if length_scale != current_length_scale:
+            if length_scale == args.length_scale:
+                current_syn_config = syn_config
+            else:
+                current_syn_config = SynthesisConfig(
+                speaker_id=args.speaker,
+                length_scale=args.length_scale,
+                noise_scale=args.noise_scale,
+                noise_w_scale=args.noise_w_scale,
+                normalize_audio=(not args.no_normalize),
+                volume=args.volume,
+            )
+            current_length_scale = length_scale
+        return current_syn_config
 
     def lines_to_wav() -> None:
         wav_params_set = False
@@ -200,6 +220,7 @@ def main() -> None:
         for line in lines():
             audio_stream = voice.synthesize(line, syn_config, include_alignment)
             if include_alignment:
+                response = []
                 for i, audio_chunk in enumerate(audio_stream):
                     audio_bytes = audio_chunk.audio_int16_bytes
                     if i > 0:
@@ -238,24 +259,14 @@ def main() -> None:
                             ],
                         }
 
-                    json_str = json.dumps(chunk_data)
+                    response.append(chunk_data)
+                
+                json_str = json.dumps(response)
 
-                    sys.stdout.buffer.write(json_str.encode("utf-8"))
-                    sys.stdout.buffer.write(b"\n")
-                    sys.stdout.buffer.flush()
-
-                if send_finish_chunk:
-                    chunk_data = {
-                        "sample_rate": 0,
-                        "sample_width": 0,
-                        "sample_channels": 0,
-                        "audio_bytes": None,
-                    }
-
-                    json_str = json.dumps(chunk_data)
-                    sys.stdout.buffer.write(json_str.encode("utf-8"))
-                    sys.stdout.buffer.write(b"\n")
-                    sys.stdout.buffer.flush()
+                sys.stdout.buffer.write(json_str.encode("utf-8"))
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+                    
             else:
                 for i, audio_chunk in enumerate(audio_stream):
                     if i > 0:

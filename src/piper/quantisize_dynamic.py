@@ -8,18 +8,18 @@ def apply_dynamic_quantization(model_path):
         print(f"Error: File {model_path} not found.")
         return
 
-    # Generate the new filename
     base_name, ext = os.path.splitext(model_path)
     output_path = f"{base_name}dq{ext}"
 
-    print(f"Quantizing {model_path} dynamically...")
-    
-    # Apply dynamic quantization
-    # We use QInt8 for weights as it's generally best for CPU performance
+    print(f"Quantizing {model_path} dynamically (excluding Convs)...")
+        
     quantize_dynamic(
         model_input=model_path,
         model_output=output_path,
-        weight_type=QuantType.QInt8
+        weight_type=QuantType.QInt8,
+        # ONLY quantize MatMul and Attention-related nodes
+        # This avoids creating the unsupported ConvInteger nodes
+        op_types_to_quantize=['MatMul', 'Gemm'] 
     )
 
     print(f"Success! Saved to: {output_path}")

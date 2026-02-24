@@ -9,6 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "piper",
+            "python": "/home/ivan/piper/.venv/bin/python",
             "console": "integratedTerminal",
              "args": [
                 "--model",
@@ -16,7 +17,8 @@
                 "--config",
                 "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx.json",
                 "--output-raw",
-                "--include-durations"
+                "--include-durations",
+                "--volatile-length-scale"
             ]
         },
         {

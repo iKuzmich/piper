@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import time
+from typing import Optional, Union
 import wave
 from collections.abc import Iterable
 from pathlib import Path
@@ -177,23 +178,36 @@ def main() -> None:
 
     include_alignment = args.include_durations
 
-    def get_synthesis_confing(length_scale) -> SynthesisConfig:
+    def parse_scale_and_text(input) -> Union[str, Optional[str]]:
+        length_scale_prefix = "[set-length-scale:"
+        start_idx = input.find(length_scale_prefix)
+        if start_idx != -1:
+            end_idx = input.find("]", start_idx)
+            if end_idx != -1:
+                return input[end_idx + 1:].lstrip(), input[start_idx + len(length_scale_prefix) : end_idx]
+            
+        return input, current_length_scale
+
+    def parse_input(input) -> Union[str, SynthesisConfig]:
+        nonlocal current_length_scale, current_syn_config
         if is_syn_config_const: 
-            return syn_config
+            return input, syn_config
+        
+        text, length_scale = parse_scale_and_text(input)
         if length_scale != current_length_scale:
             if length_scale == args.length_scale:
                 current_syn_config = syn_config
             else:
                 current_syn_config = SynthesisConfig(
                 speaker_id=args.speaker,
-                length_scale=args.length_scale,
+                length_scale=length_scale,
                 noise_scale=args.noise_scale,
                 noise_w_scale=args.noise_w_scale,
                 normalize_audio=(not args.no_normalize),
                 volume=args.volume,
             )
             current_length_scale = length_scale
-        return current_syn_config
+        return text, current_syn_config
 
     def lines_to_wav() -> None:
         wav_params_set = False
@@ -218,7 +232,9 @@ def main() -> None:
     if args.output_raw:
         # Write raw audio to stdout as its produced
         for line in lines():
-            audio_stream = voice.synthesize(line, syn_config, include_alignment)
+            start_infering_time = time.perf_counter()
+            text, synthesis_config = parse_input(line)
+            audio_stream = voice.synthesize(text, synthesis_config, include_alignment)
             if include_alignment:
                 response = []
                 for i, audio_chunk in enumerate(audio_stream):
@@ -239,16 +255,16 @@ def main() -> None:
                     ):
                         alignments = audio_chunk.skidbladnir_alignments
                         chunk_data["skidbladnir_alignments"] = {
-                            "original_text": alignments.original_text,
+                            #"original_text": alignments.original_text,
                             "sentences": [
                                 {
                                     "sentence_index": sent.sentence_index,
                                     "words": [
                                         {
-                                            "word": word.word,
+                                            #"word": word.word,
                                             "word_index": word.word_index,
-                                            "phonemes": list(word.phonemes),
-                                            "phoneme_ids": list(word.phoneme_ids),
+                                            #"phonemes": list(word.phonemes),
+                                            #"phoneme_ids": list(word.phoneme_ids),
                                             "duration": word.duration,
                                             "timeline_offset": word.timeline_offset,
                                         }
@@ -261,6 +277,13 @@ def main() -> None:
 
                     response.append(chunk_data)
                 
+                end_infering_time = time.perf_counter()
+                timing = end_infering_time - start_infering_time
+
+                if len(response) > 0:
+                    last_chunk = response[-1:][0]
+                    last_chunk["piper_timing"] = timing * 1000
+                    last_chunk["METADATA"] = "#END#"
                 json_str = json.dumps(response)
 
                 sys.stdout.buffer.write(json_str.encode("utf-8"))

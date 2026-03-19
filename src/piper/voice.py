@@ -1,5 +1,11 @@
 """Phonemization and synthesis for Piper."""
 
+import os
+
+# Disable ONNX Runtime GPU device discovery to suppress warning messages
+# when no GPU is available (e.g., on systems without NVIDIA GPU or proper drivers)
+os.environ.setdefault("ORT_DISABLE_GPU", "1")
+
 import itertools
 import json
 import logging

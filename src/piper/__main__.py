@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import time
+from typing import Optional, Union
 import wave
 from collections.abc import Iterable
 from pathlib import Path
@@ -99,6 +100,13 @@ def main() -> None:
     )
     #
     parser.add_argument(
+        "--volatile-length-scale",
+        "--volatile_length_scale",
+        action="store_true",
+        help="Ability to change reading speed for the same process",
+    )
+    #
+    parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
     )
     args, unknown_args = parser.parse_known_args()
@@ -157,6 +165,9 @@ def main() -> None:
         normalize_audio=(not args.no_normalize),
         volume=args.volume,
     )
+    is_syn_config_const = not args.volatile_length_scale
+    current_length_scale = args.length_scale
+    current_syn_config = syn_config
 
     wav_file: wave.Wave_write
 
@@ -166,6 +177,37 @@ def main() -> None:
     )
 
     include_alignment = args.include_durations
+
+    def parse_scale_and_text(input) -> Union[str, Optional[str]]:
+        length_scale_prefix = "[set-length-scale:"
+        start_idx = input.find(length_scale_prefix)
+        if start_idx != -1:
+            end_idx = input.find("]", start_idx)
+            if end_idx != -1:
+                return input[end_idx + 1:].lstrip(), input[start_idx + len(length_scale_prefix) : end_idx]
+            
+        return input, current_length_scale
+
+    def parse_input(input) -> Union[str, SynthesisConfig]:
+        nonlocal current_length_scale, current_syn_config
+        if is_syn_config_const: 
+            return input, syn_config
+        
+        text, length_scale = parse_scale_and_text(input)
+        if length_scale != current_length_scale:
+            if length_scale == args.length_scale:
+                current_syn_config = syn_config
+            else:
+                current_syn_config = SynthesisConfig(
+                speaker_id=args.speaker,
+                length_scale=length_scale,
+                noise_scale=args.noise_scale,
+                noise_w_scale=args.noise_w_scale,
+                normalize_audio=(not args.no_normalize),
+                volume=args.volume,
+            )
+            current_length_scale = length_scale
+        return text, current_syn_config
 
     def lines_to_wav() -> None:
         wav_params_set = False
@@ -190,8 +232,11 @@ def main() -> None:
     if args.output_raw:
         # Write raw audio to stdout as its produced
         for line in lines():
-            audio_stream = voice.synthesize(line, syn_config, include_alignment)
+            start_infering_time = time.perf_counter()
+            text, synthesis_config = parse_input(line)
+            audio_stream = voice.synthesize(text, synthesis_config, include_alignment)
             if include_alignment:
+                response = []
                 for i, audio_chunk in enumerate(audio_stream):
                     audio_bytes = audio_chunk.audio_int16_bytes
                     if i > 0:
@@ -210,16 +255,16 @@ def main() -> None:
                     ):
                         alignments = audio_chunk.skidbladnir_alignments
                         chunk_data["skidbladnir_alignments"] = {
-                            "original_text": alignments.original_text,
+                            #"original_text": alignments.original_text,
                             "sentences": [
                                 {
                                     "sentence_index": sent.sentence_index,
                                     "words": [
                                         {
-                                            "word": word.word,
+                                            #"word": word.word,
                                             "word_index": word.word_index,
-                                            "phonemes": list(word.phonemes),
-                                            "phoneme_ids": list(word.phoneme_ids),
+                                            #"phonemes": list(word.phonemes),
+                                            #"phoneme_ids": list(word.phoneme_ids),
                                             "duration": word.duration,
                                             "timeline_offset": word.timeline_offset,
                                         }
@@ -230,23 +275,21 @@ def main() -> None:
                             ],
                         }
 
-                    json_str = json.dumps(chunk_data)
+                    response.append(chunk_data)
+                
+                end_infering_time = time.perf_counter()
+                timing = end_infering_time - start_infering_time
 
-                    sys.stdout.buffer.write(json_str.encode("utf-8"))
-                    sys.stdout.buffer.write(b"\n")
-                    sys.stdout.buffer.flush()
+                if len(response) > 0:
+                    last_chunk = response[-1:][0]
+                    last_chunk["piper_timing"] = timing * 1000
+                    last_chunk["METADATA"] = "#END#"
+                json_str = json.dumps(response)
 
-                chunk_data = {
-                    "sample_rate": 0,
-                    "sample_width": 0,
-                    "sample_channels": 0,
-                    "audio_bytes": None,
-                }
-
-                json_str = json.dumps(chunk_data)
                 sys.stdout.buffer.write(json_str.encode("utf-8"))
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
+                    
             else:
                 for i, audio_chunk in enumerate(audio_stream):
                     if i > 0:

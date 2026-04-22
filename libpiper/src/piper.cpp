@@ -159,17 +159,23 @@ int piper_synthesize_start(struct piper_synthesizer *synth, const char *text,
 
     // phonemize
     std::vector<std::string> sentence_phonemes{""};
+    std::vector<std::string> sentence_word_phonemes{""};
     std::size_t current_idx = 0;
     const void *text_ptr = text;
     while (text_ptr != nullptr) {
         int terminator = 0;
         std::string terminator_str = "";
 
+        const char *word_phonemes_raw = nullptr;
         const char *phonemes = espeak_TextToPhonemesWithTerminator(
-            &text_ptr, espeakCHARS_AUTO, espeakPHONEMES_IPA, &terminator);
+            &text_ptr, espeakCHARS_AUTO, espeakPHONEMES_IPA, &terminator,
+            &word_phonemes_raw);
 
         if (phonemes) {
             sentence_phonemes[current_idx] += phonemes;
+        }
+        if (word_phonemes_raw) {
+            sentence_word_phonemes[current_idx] += word_phonemes_raw;
         }
 
         // Categorize terminator
@@ -190,28 +196,33 @@ int piper_synthesize_start(struct piper_synthesizer *synth, const char *text,
         }
 
         sentence_phonemes[current_idx] += terminator_str;
+        sentence_word_phonemes[current_idx] += terminator_str;
 
         if ((terminator & CLAUSE_TYPE_SENTENCE) == CLAUSE_TYPE_SENTENCE) {
             sentence_phonemes.push_back("");
+            sentence_word_phonemes.push_back("");
             current_idx = sentence_phonemes.size() - 1;
         }
     }
 
-    // phonemes to ids
-    std::vector<Phoneme> sentence_codepoints;
-    std::vector<PhonemeId> sentence_ids;
-    for (auto &phonemes_str : sentence_phonemes) {
-        if (phonemes_str.empty()) {
-            continue;
-        }
+    // Helper: build a codepoints vector from an IPA string (with phoneme ids).
+    // Returns sentence_codepoints only; ids are built in parallel for the regular path.
+    // Build phoneme codepoints (and optionally phoneme ids) from an IPA string.
+    // The output format matches the piper_audio_chunk spec:
+    //   BOS BOS 0  [p p 0]...  EOS 0
+    // where each phoneme emits one pair [p, p, 0] per mapped id.
+    // When ids==nullptr only the codepoints are built (used for word-aligned array).
+    auto build_codepoints = [&](const std::string &phonemes_str,
+                                std::vector<Phoneme> &codepoints,
+                                std::vector<PhonemeId> *ids) {
+        if (phonemes_str.empty()) return;
 
-        sentence_codepoints.push_back(PHONEME_BOS);
-        sentence_ids.push_back(ID_BOS);
-
-        sentence_codepoints.push_back(PHONEME_BOS);
-        sentence_ids.push_back(ID_PAD);
-
-        sentence_codepoints.push_back(PHONEME_SEPARATOR);
+        // BOS group
+        codepoints.push_back(PHONEME_BOS);
+        if (ids) ids->push_back(ID_BOS);
+        codepoints.push_back(PHONEME_BOS);
+        if (ids) ids->push_back(ID_PAD);
+        codepoints.push_back(PHONEME_SEPARATOR);
 
         auto phonemes_norm = una::norm::to_nfd_utf8(phonemes_str);
         auto phonemes_range = una::ranges::utf8_view{phonemes_norm};
@@ -225,10 +236,9 @@ int piper_synthesize_start(struct piper_synthesizer *synth, const char *text,
             auto phoneme = *phonemes_iter;
 
             if (in_lang_flag) {
-                if (phoneme == U')') {
+                if (phoneme == U')')
                     // End of (lang) switch
                     in_lang_flag = false;
-                }
             } else if (phoneme == U'(') {
                 // Start of (lang) switch
                 in_lang_flag = true;
@@ -236,28 +246,56 @@ int piper_synthesize_start(struct piper_synthesizer *synth, const char *text,
                 // Look up ids
                 auto ids_for_phoneme = synth->phoneme_id_map.find(phoneme);
                 if (ids_for_phoneme != synth->phoneme_id_map.end()) {
+                    // Phoneme is in the map: emit one [p, p, 0] group per mapped id
                     for (auto id : ids_for_phoneme->second) {
-                        sentence_codepoints.push_back(phoneme);
-                        sentence_ids.push_back(id);
-
-                        sentence_codepoints.push_back(phoneme);
-                        sentence_ids.push_back(ID_PAD);
-
-                        sentence_codepoints.push_back(PHONEME_SEPARATOR);
+                        codepoints.push_back(phoneme);
+                        if (ids) ids->push_back(id);
+                        codepoints.push_back(phoneme);
+                        if (ids) ids->push_back(ID_PAD);
+                        codepoints.push_back(PHONEME_SEPARATOR);
                     }
+                } else if (!ids) {
+                    // Not in map, building word-aligned array only: still emit the
+                    // codepoint group so AlignmentCalculator can detect word boundaries
+                    // (e.g. space codepoints inserted by GetWordAlignedPhonemeString).
+                    codepoints.push_back(phoneme);
+                    codepoints.push_back(phoneme);
+                    codepoints.push_back(PHONEME_SEPARATOR);
                 }
+                // When building regular phonemes (ids != nullptr) and phoneme is not in
+                // the map, skip silently — matches original behaviour.
             }
 
             phonemes_iter++;
         }
 
-        sentence_codepoints.push_back(PHONEME_EOS);
-        sentence_ids.push_back(ID_EOS);
-        sentence_codepoints.push_back(PHONEME_SEPARATOR);
+        // EOS group
+        codepoints.push_back(PHONEME_EOS);
+        if (ids) ids->push_back(ID_EOS);
+        codepoints.push_back(PHONEME_SEPARATOR);
+    };
 
-        synth->phoneme_id_queue.emplace(
-            std::move(std::make_pair(sentence_codepoints, sentence_ids)));
-        sentence_ids.clear();
+    // phonemes to ids
+    for (std::size_t si = 0; si < sentence_phonemes.size(); si++) {
+        const auto &phonemes_str = sentence_phonemes[si];
+        if (phonemes_str.empty())
+            continue;
+
+        std::vector<Phoneme> sentence_codepoints;
+        std::vector<PhonemeId> sentence_ids;
+        build_codepoints(phonemes_str, sentence_codepoints, &sentence_ids);
+
+        std::vector<Phoneme> word_codepoints;
+        const auto &word_str = (si < sentence_word_phonemes.size())
+            ? sentence_word_phonemes[si] : phonemes_str;
+        build_codepoints(word_str.empty() ? phonemes_str : word_str,
+                         word_codepoints, nullptr);
+
+        piper_synthesizer::PhonemeChunk chunk;
+        chunk.phonemes = std::move(sentence_codepoints);
+        chunk.word_phonemes = std::move(word_codepoints);
+        chunk.ids = std::move(sentence_ids);
+        synth->phoneme_id_queue.push(std::move(chunk));
     }
 
     return PIPER_OK;
@@ -276,6 +314,7 @@ int piper_synthesize_next(struct piper_synthesizer *synth,
     // Clear data from previous call
     synth->chunk_samples.clear();
     synth->chunk_phonemes.clear();
+    synth->chunk_word_phonemes.clear();
     synth->chunk_phoneme_ids.clear();
     synth->chunk_alignments.clear();
 
@@ -283,6 +322,10 @@ int piper_synthesize_next(struct piper_synthesizer *synth,
     chunk->samples = nullptr;
     chunk->num_samples = 0;
     chunk->is_last = false;
+    chunk->phonemes = nullptr;
+    chunk->num_phonemes = 0;
+    chunk->word_phonemes = nullptr;
+    chunk->num_word_phonemes = 0;
     chunk->phoneme_ids = nullptr;
     chunk->num_phoneme_ids = 0;
     chunk->alignments = nullptr;
@@ -295,8 +338,11 @@ int piper_synthesize_next(struct piper_synthesizer *synth,
     }
 
     // Process next list of phoneme ids
-    auto [next_phonemes, next_ids] = std::move(synth->phoneme_id_queue.front());
+    auto next_chunk = std::move(synth->phoneme_id_queue.front());
     synth->phoneme_id_queue.pop();
+    auto &next_phonemes = next_chunk.phonemes;
+    auto &next_word_phonemes = next_chunk.word_phonemes;
+    auto &next_ids = next_chunk.ids;
 
     auto memoryInfo = Ort::MemoryInfo::CreateCpu(
         OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
@@ -373,6 +419,11 @@ int piper_synthesize_next(struct piper_synthesizer *synth,
     synth->chunk_phonemes = std::move(next_phonemes);
     chunk->phonemes = synth->chunk_phonemes.data();
     chunk->num_phonemes = synth->chunk_phonemes.size();
+
+    // Copy word-aligned phonemes
+    synth->chunk_word_phonemes = std::move(next_word_phonemes);
+    chunk->word_phonemes = synth->chunk_word_phonemes.data();
+    chunk->num_word_phonemes = synth->chunk_word_phonemes.size();
 
     // Copy phoneme ids
     for (auto phoneme_id : next_ids) {

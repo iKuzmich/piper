@@ -67,6 +67,22 @@ typedef struct piper_audio_chunk {
   size_t num_phonemes;
 
   /**
+   * \brief Word-aligned phoneme codepoints.
+   *
+   * Same format as phonemes, but with an explicit whitespace group (0x20) inserted
+   * for every source-text word that espeak merged or skipped. The number of whitespace
+   * groups in this array matches the number of whitespace-separated tokens in the
+   * original input text, enabling reliable per-word alignment even when espeak
+   * combines adjacent words into a single phoneme group.
+   */
+  const char32_t *word_phonemes;
+
+  /**
+   * \brief Number of codepoints in word_phonemes.
+   */
+  size_t num_word_phonemes;
+
+  /**
    * \brief Phoneme ids that produced this audio chunk.
    *
    * Ids will look like [1, 0, id1, 0, id2, 0, ..., 2] where:

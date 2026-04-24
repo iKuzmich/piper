@@ -75,12 +75,12 @@ typedef struct piper_audio_chunk {
    * original input text, enabling reliable per-word alignment even when espeak
    * combines adjacent words into a single phoneme group.
    */
-  const char32_t *word_phonemes;
+  const char32_t *phonemes_aligned;
 
   /**
-   * \brief Number of codepoints in word_phonemes.
+   * \brief Number of codepoints in phonemes_aligned.
    */
-  size_t num_word_phonemes;
+  size_t num_phonemes_aligned;
 
   /**
    * \brief Phoneme ids that produced this audio chunk.

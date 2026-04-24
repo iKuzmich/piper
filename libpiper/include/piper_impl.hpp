@@ -76,14 +76,14 @@ struct piper_synthesizer {
     // synthesize state
     struct PhonemeChunk {
         std::vector<Phoneme> phonemes;
-        std::vector<Phoneme> word_phonemes;
+        std::vector<Phoneme> phonemes_aligned;
         std::vector<PhonemeId> ids;
     };
     std::queue<PhonemeChunk> phoneme_id_queue;
     std::vector<float> chunk_samples;
     std::vector<int> chunk_phoneme_ids;
     std::vector<Phoneme> chunk_phonemes;
-    std::vector<Phoneme> chunk_word_phonemes;
+    std::vector<Phoneme> chunk_phonemes_aligned;
     std::vector<int> chunk_alignments;
     float length_scale = DEFAULT_LENGTH_SCALE;
     float noise_scale = DEFAULT_NOISE_SCALE;

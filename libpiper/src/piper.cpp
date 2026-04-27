@@ -285,7 +285,7 @@ int piper_synthesize_start(struct piper_synthesizer *synth, const char *text,
 
         if (si < sentence_phonemes_aligned.size()) {
             const auto &aligned_str = sentence_phonemes_aligned[si];
-            if (!aligned_str.empty()) {
+            if (!aligned_str.empty() && aligned_str != phonemes_str) {
                 std::vector<Phoneme> sentence_codepoints_aligned;
                 build_codepoints(synth->phoneme_id_map, aligned_str, sentence_codepoints_aligned, nullptr);
                 chunk.phonemes_aligned = std::move(sentence_codepoints_aligned);

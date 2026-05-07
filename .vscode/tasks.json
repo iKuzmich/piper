@@ -1,0 +1,68 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            // Full first-time build: downloads espeak-ng + onnxruntime, then compiles.
+            // Run this once before using the debug launch config.
+            "label": "libpiper: Full Build Debug (WSL)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "cd ${workspaceFolder}/libpiper && cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DBUILD_PIPER_TEST=ON && cmake --build build -j$(nproc)"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        },
+        {
+            // Incremental rebuild of piper_test only (espeak-ng already built).
+            "label": "libpiper: Rebuild piper_test (WSL)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "cd ${workspaceFolder}/libpiper && cmake --build build --target piper_test -j$(nproc)"
+            ],
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false
+            }
+        },
+        {
+            // Release build + install to libpiper/install/
+            "label": "libpiper: Full Build Release + Install (WSL)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "cd ${workspaceFolder}/libpiper && cmake -Bbuild-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install && cmake --build build-release -j$(nproc) && cmake --install build-release"
+            ],
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        }
+    ]
+}

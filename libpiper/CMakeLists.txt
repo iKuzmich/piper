@@ -130,6 +130,26 @@ target_link_libraries(piper
     onnxruntime
 )
 
+# ---- piper_test ----
+
+option(BUILD_PIPER_TEST "Build piper_test debug program" ON)
+if(BUILD_PIPER_TEST)
+    add_executable(piper_test test/piper_test.cpp)
+    add_dependencies(piper_test piper)
+    target_include_directories(piper_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(piper_test PRIVATE piper)
+
+    # Embed RPATH so the binary finds libpiper and libonnxruntime without
+    # needing LD_LIBRARY_PATH when running from the build tree.
+    if(NOT WIN32)
+        set_target_properties(piper_test PROPERTIES
+            BUILD_RPATH "${CMAKE_BINARY_DIR};${ONNXRUNTIME_DIR}/lib"
+        )
+    endif()
+endif()
+
 # ---- install ---
 
 include(GNUInstallDirs)

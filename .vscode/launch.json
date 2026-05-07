@@ -5,6 +5,46 @@
     "version": "0.2.0",
     "configurations": [
         {
+            // Debug libpiper's C++ test program through WSL using gdb.
+            // Prerequisites:
+            //   1. Run task "libpiper: Full Build Debug (WSL)" once (downloads deps, ~5-10 min).
+            //   2. Set "program" args[0] to your voice model path inside WSL.
+            //   3. Install C/C++ extension (ms-vscode.cpptools) if not already present.
+            "name": "Debug piper_test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/mnt/d/Workspace/Sensotec/Skidbladnir/piper/libpiper/build/piper_test",
+            "args": [
+                "/home/ivan/Workspace/Sensotec/Piper/voices/en-US/Amy/en_US-amy-medium.onnx",
+                "/mnt/d/Workspace/Sensotec/Skidbladnir/piper/libpiper/build/espeak_ng-install/share/espeak-ng-data",
+                "Hello, welcome to the world of speech synthesis!"
+            ],
+            "stopAtEntry": false,
+            "cwd": "/mnt/d/Workspace/Sensotec/Skidbladnir/piper/libpiper",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/mnt/d/Workspace/Sensotec/Skidbladnir/piper/libpiper/build:/mnt/d/Workspace/Sensotec/Skidbladnir/piper/libpiper/lib/onnxruntime-linux-x64-1.22.0/lib"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set disassembly flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "libpiper: Rebuild piper_test (WSL)"
+        },
+        {
             "name": "Debug Linux",
             "type": "debugpy",
             "request": "launch",

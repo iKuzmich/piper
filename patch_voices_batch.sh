@@ -41,7 +41,7 @@ SKIPPED=0
 
 for ONNX_FILE in "${ONNX_FILES[@]}"; do
     echo "Processing: $ONNX_FILE"
-    if python3 -m "$PATCH_SCRIPT" "$ONNX_FILE"; then
+    if python3 -c "import sys; sys.argv = [sys.argv[1]] + sys.argv[2:]; exec(compile(open(sys.argv[0]).read(), sys.argv[0], 'exec'))" "$PATCH_SCRIPT" "$ONNX_FILE"; then
         echo "  OK"
         (( PASSED++ )) || true
     else

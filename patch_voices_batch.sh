@@ -41,7 +41,7 @@ SKIPPED=0
 
 for ONNX_FILE in "${ONNX_FILES[@]}"; do
     echo "Processing: $ONNX_FILE"
-    if python3 "$PATCH_SCRIPT" "$ONNX_FILE"; then
+    if python3 -m "$PATCH_SCRIPT" "$ONNX_FILE"; then
         echo "  OK"
         (( PASSED++ )) || true
     else

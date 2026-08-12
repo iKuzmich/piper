@@ -53,7 +53,7 @@ include_directories(
 # Look for onnxruntime files in <root>/lib
 if(NOT DEFINED ONNXRUNTIME_DIR)
     if(NOT DEFINED ONNXRUNTIME_VERSION)
-        set(ONNXRUNTIME_VERSION "1.22.0")
+        set(ONNXRUNTIME_VERSION "1.28.0")
     endif()
 
     if(WIN32)

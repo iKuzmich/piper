@@ -96,6 +96,16 @@ struct piper_synthesizer *piper_create(const char *model_path,
     synth->session_options.DisableMemPattern();
     synth->session_options.DisableProfiling();
 
+    std::string model_path_str(model_path);
+    bool is_ort_model = model_path_str.size() >= 4 && model_path_str.compare(model_path_str.size() - 4, 4, ".ort") == 0;
+
+    if (is_ort_model) {
+        synth->session_options.AddConfigEntry("session.use_memory_mapped_ort_model", "1");
+        synth->session_options.AddConfigEntry("session.use_ort_model_bytes_for_initializers", "1");
+        synth->session_options.AddConfigEntry("session.disable_prepacking", "1");
+        synth->session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+    }
+
     synth->session = std::make_unique<Ort::Session>(
         Ort::Session(ort_env, model_path, synth->session_options));
 

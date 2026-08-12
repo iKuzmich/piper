@@ -95,6 +95,8 @@ struct piper_synthesizer *piper_create(const char *model_path,
     synth->session_options.DisableCpuMemArena();
     synth->session_options.DisableMemPattern();
     synth->session_options.DisableProfiling();
+    synth->session_options.SetIntraOpNumThreads(1);
+    synth->session_options.SetInterOpNumThreads(1);
 
     std::string model_path_str(model_path);
     bool is_ort_model = model_path_str.size() >= 4 && model_path_str.compare(model_path_str.size() - 4, 4, ".ort") == 0;

@@ -7,6 +7,10 @@
 
 #include <espeak-ng/speak_lib.h>
 
+#ifdef __linux__
+#include <malloc.h>
+#endif
+
 using json = nlohmann::json;
 
 struct piper_synthesizer *piper_create(const char *model_path,
@@ -122,6 +126,10 @@ void piper_free(struct piper_synthesizer *synth) {
     }
 
     delete synth;
+
+#ifdef __linux__
+    malloc_trim(0);
+#endif
 }
 
 piper_synthesize_options

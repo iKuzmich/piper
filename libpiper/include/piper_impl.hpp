@@ -54,24 +54,28 @@ Ort::Env ort_env{ORT_LOGGING_LEVEL_WARNING, "piper"};
 #define CLAUSE_COLON (30 | CLAUSE_INTONATION_FULL_STOP | CLAUSE_TYPE_CLAUSE)
 #define CLAUSE_SEMICOLON (30 | CLAUSE_INTONATION_COMMA | CLAUSE_TYPE_CLAUSE)
 
-struct piper_synthesizer {
+struct piper_voice {
     // From config JSON file
+    std::string model_path;
     std::string espeak_voice;
     int sample_rate;
     int num_speakers;
     PhonemeIdMap phoneme_id_map;
     int hop_length = DEFAULT_HOP_LENGTH;
-
     // Default synthesis settings for the voice
     float synth_length_scale = DEFAULT_LENGTH_SCALE;
     float synth_noise_scale = DEFAULT_NOISE_SCALE;
     float synth_noise_w_scale = DEFAULT_NOISE_W_SCALE;
+};
+
+struct piper_synthesizer {
+    piper_voice *voice = nullptr;
+    std::unique_ptr<piper_voice> owned_voice;
 
     // onnx
     std::unique_ptr<Ort::Session> session;
     Ort::AllocatorWithDefaultOptions session_allocator;
     Ort::SessionOptions session_options;
-    Ort::Env session_env;
 
     // synthesize state
     struct PhonemeChunk {

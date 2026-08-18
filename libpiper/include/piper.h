@@ -20,6 +20,11 @@ extern "C" {
 typedef struct piper_synthesizer piper_synthesizer;
 
 /**
+ * \brief Parsed, lightweight voice configuration
+ */
+typedef struct piper_voice piper_voice;
+
+/**
  * \brief Chunk of synthesized audio samples.
  */
 typedef struct piper_audio_chunk {
@@ -175,11 +180,40 @@ piper_synthesizer *piper_create(const char *model_path, const char *config_path,
                                 const char *espeak_data_path);
 
 /**
+ * \brief Parse a Piper voice model's configuration without creating an ONNX Runtime session.
+ *
+ * Unlike \ref piper_create, this does not load the ONNX model — only the
+ * JSON config (espeak voice, audio settings, phoneme_id_map, default
+ * inference scales) is parsed. Call \ref piper_load_model to obtain a
+ * synthesizer with a live ONNX Runtime session for actual inference.
+ *
+ * \param model_path path to ONNX voice model file.
+ *
+ * \param config_path path to JSON voice config file or NULL if it's the model_path + .json.
+ *
+ * \param espeak_data_path path to the espeak-ng data directory.
+ *
+ * \return a parsed voice configuration, or NULL on failure.
+ */
+piper_voice *piper_create2(const char *model_path, const char *config_path,
+                           const char *espeak_data_path);
+
+/**
  * \brief Free resources for Piper synthesizer.
  *
  * \param synth Piper synthesizer.
  */
 void piper_free(piper_synthesizer *synth);
+
+/**
+ * \brief Free a voice configuration created by \ref piper_create2.
+ *
+ * Does not call espeak_Terminate() — espeak-ng is initialized once for the
+ * life of the process and shared across all voices.
+ *
+ * \param voice Voice configuration.
+ */
+void piper_free_voice(piper_voice *voice);
 
 /**
  * \brief Get the default synthesis options for a Piper synthesizer.
@@ -190,6 +224,38 @@ void piper_free(piper_synthesizer *synth);
  */
 piper_synthesize_options
 piper_default_synthesize_options(piper_synthesizer *synth);
+
+/**
+ * \brief Get the default synthesis options for a voice configuration.
+ *
+ * \param voice Voice configuration.
+ *
+ * \return synthesis options from voice config.
+ */
+piper_synthesize_options
+piper_default_synthesize_options2(piper_voice *voice);
+
+/**
+ * \brief Load the ONNX Runtime session for a voice, for immediate
+ * synthesis.
+ *
+ * \param voice Voice configuration from \ref piper_create2.
+ *
+ * \return a Piper text-to-speech synthesizer bound to the voice, or NULL on
+ * failure.
+ */
+piper_synthesizer *piper_load_model(piper_voice *voice);
+
+/**
+ * \brief Unload the ONNX Runtime session created by \ref piper_load_model.
+ *
+ * Releases the session and per-call working buffers only — the voice
+ * configuration it was bound to is untouched and may be reused with another
+ * call to \ref piper_load_model.
+ *
+ * \param synth Piper synthesizer.
+ */
+void piper_unload_model(piper_synthesizer *synth);
 
 /**
  * \brief Start text-to-speech synthesis.

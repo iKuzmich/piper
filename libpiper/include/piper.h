@@ -25,6 +25,38 @@ typedef struct piper_synthesizer piper_synthesizer;
 typedef struct piper_voice piper_voice;
 
 /**
+ * \brief Version of the structs exchanged with the library.
+ *
+ * Bumped on every layout change; bindings compare it with \ref piper_abi_version.
+ */
+#define PIPER_ABI_VERSION 2
+
+/**
+ * \brief Timing of one word of the synthesized text.
+ *
+ * Words are the ' '-separated atoms of the text given to \ref piper_synthesize_start
+ * (consecutive spaces give empty words), so word_index matches a plain split on ' '.
+ */
+typedef struct piper_word_alignment {
+  /**
+   * \brief Index of the word in the text.
+   */
+  int word_index;
+
+  /**
+   * \brief Start of the word in milliseconds, relative to the audio of the whole text.
+   */
+  int offset_ms;
+
+  /**
+   * \brief Duration in milliseconds, including the pause after the word.
+   *
+   * offset_ms + duration_ms is the offset_ms of the next word.
+   */
+  int duration_ms;
+} piper_word_alignment;
+
+/**
  * \brief Chunk of synthesized audio samples.
  */
 typedef struct piper_audio_chunk {
@@ -39,87 +71,24 @@ typedef struct piper_audio_chunk {
   size_t num_samples;
 
   /**
-   * \brief Sample rate in Hertz.
-   */
-  int sample_rate;
-
-  /**
    * \brief True if this is the last audio chunk.
    */
   bool is_last;
 
   /**
-   * \brief Phoneme codepoints that produced this audio chunk, aligned with ids.
+   * \brief Words whose audio ends in this chunk, in ascending word_index.
    *
-   * Phonemes will look like [p1, p1, 0, p2, p2, 0, ...] where the same phoneme
-   * codepoint is repeated for each id from that phoneme (usually just one id
-   * plus pad).
-   *
-   * Groups of repeated codepoints are separated by a 0 so that alignments can
-   * be attributed to the correct phoneme. This is accomplished by:
-   *
-   * 1. Read N (repeated) codepoints from phonemes until a 0 is reached (or end)
-   * 2. The next N phoneme ids correspond to that phoneme
-   * 3. The next N alignments (sample counts) correspond to that phoneme
-   * 4. Advance your iterators in the phoneme id and alignment arrays by N
-   * 5. Repeat
+   * Over all chunks every word is reported exactly once. Words without audio of
+   * their own (merged by espeak into a neighbour, punctuation only, empty) share
+   * the neighbour's time, split by letter count (empty words get none). Empty
+   * when the voice model has no phoneme durations output.
    */
-  const char32_t *phonemes;
+  const piper_word_alignment *words;
 
   /**
-   * \brief Number of codepoints in phonemes.
+   * \brief Number of entries in words.
    */
-  size_t num_phonemes;
-
-  /**
-   * \brief Word-aligned phoneme codepoints.
-   *
-   * Same format as phonemes, but with an explicit whitespace group (0x20) inserted
-   * for every source-text word that espeak merged or skipped. The number of whitespace
-   * groups in this array matches the number of whitespace-separated tokens in the
-   * original input text, enabling reliable per-word alignment even when espeak
-   * combines adjacent words into a single phoneme group.
-   */
-  const char32_t *phonemes_aligned;
-
-  /**
-   * \brief Number of codepoints in phonemes_aligned.
-   */
-  size_t num_phonemes_aligned;
-
-  /**
-   * \brief Phoneme ids that produced this audio chunk.
-   *
-   * Ids will look like [1, 0, id1, 0, id2, 0, ..., 2] where:
-   * 0 = pad
-   * 1 = beginning of sentence
-   * 2 = end of sentence
-   */
-  const int *phoneme_ids;
-
-  /**
-   * \brief Number of ids in phoneme_ids.
-   */
-  size_t num_phoneme_ids;
-
-  /**
-   * \brief Audio sample count for each phoneme id.
-   *
-   * This includes the meta ids:
-   * 0 = pad
-   * 1 = beginning of sentence
-   * 2 = end of sentence
-   *
-   * Use the phonemes array to align these sample counts with actual phonemes.
-   */
-  const int *alignments;
-
-  /**
-   * \brief Number of alignments.
-   *
-   * This should be the same as num_phoneme_ids.
-   */
-  size_t num_alignments;
+  size_t num_words;
 } piper_audio_chunk;
 
 /**
@@ -164,6 +133,13 @@ typedef struct piper_synthesize_options {
 } piper_synthesize_options;
 
 /**
+ * \brief Get the struct version the library was built with.
+ *
+ * \return PIPER_ABI_VERSION of the library.
+ */
+int piper_abi_version(void);
+
+/**
  * \brief Create a Piper text-to-speech synthesizer from a voice model.
  *
  * \param model_path path to ONNX voice model file.
@@ -195,18 +171,20 @@ piper_synthesizer *piper_create(const char *model_path, const char *config_path,
  *
  * \return a parsed voice configuration, or NULL on failure.
  */
-piper_voice *piper_create2(const char *model_path, const char *config_path,
-                           const char *espeak_data_path);
+piper_voice *piper_create_voice(const char *model_path, const char *config_path, const char *espeak_data_path);
 
 /**
  * \brief Free resources for Piper synthesizer.
+ *
+ * Does not call espeak_Terminate() — espeak-ng is initialized once for the
+ * life of the process and shared across all voices.
  *
  * \param synth Piper synthesizer.
  */
 void piper_free(piper_synthesizer *synth);
 
 /**
- * \brief Free a voice configuration created by \ref piper_create2.
+ * \brief Free a voice configuration created by \ref piper_create_voice.
  *
  * Does not call espeak_Terminate() — espeak-ng is initialized once for the
  * life of the process and shared across all voices.
@@ -239,23 +217,23 @@ piper_default_synthesize_options2(piper_voice *voice);
  * \brief Load the ONNX Runtime session for a voice, for immediate
  * synthesis.
  *
- * \param voice Voice configuration from \ref piper_create2.
+ * \param voice Voice configuration from \ref piper_create_voice.
  *
  * \return a Piper text-to-speech synthesizer bound to the voice, or NULL on
  * failure.
  */
-piper_synthesizer *piper_load_model(piper_voice *voice);
+piper_synthesizer *piper_create_synthesizer(piper_voice *voice);
 
 /**
- * \brief Unload the ONNX Runtime session created by \ref piper_load_model.
+ * \brief Unload the ONNX Runtime session created by \ref piper_create_synthesizer.
  *
  * Releases the session and per-call working buffers only — the voice
  * configuration it was bound to is untouched and may be reused with another
- * call to \ref piper_load_model.
+ * call to \ref piper_create_synthesizer.
  *
  * \param synth Piper synthesizer.
  */
-void piper_unload_model(piper_synthesizer *synth);
+void piper_free_synthesizer(piper_synthesizer *synth);
 
 /**
  * \brief Start text-to-speech synthesis.

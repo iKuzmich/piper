@@ -58,7 +58,7 @@ struct piper_voice {
     // From config JSON file
     std::string model_path;
     std::string espeak_voice;
-    int sample_rate;
+    int sample_rate = 0;
     int num_speakers;
     PhonemeIdMap phoneme_id_map;
     int hop_length = DEFAULT_HOP_LENGTH;
@@ -70,7 +70,6 @@ struct piper_voice {
 
 struct piper_synthesizer {
     piper_voice *voice = nullptr;
-    std::unique_ptr<piper_voice> owned_voice;
 
     // onnx
     std::unique_ptr<Ort::Session> session;
@@ -78,17 +77,24 @@ struct piper_synthesizer {
     Ort::SessionOptions session_options;
 
     // synthesize state
+    // Words without ids of their own share the time of the voiced word next to them
+    struct WordGroup {
+        int first_word;
+        int last_word;
+        int voiced_word;
+    };
     struct PhonemeChunk {
-        std::vector<Phoneme> phonemes;
-        std::vector<Phoneme> phonemes_aligned;
         std::vector<PhonemeId> ids;
+        std::vector<int> id_words;          // word of the text owning each id
+        std::vector<WordGroup> word_groups; // groups whose audio ends in this chunk
     };
     std::queue<PhonemeChunk> phoneme_id_queue;
     std::vector<float> chunk_samples;
-    std::vector<int> chunk_phoneme_ids;
-    std::vector<Phoneme> chunk_phonemes;
-    std::vector<Phoneme> chunk_phonemes_aligned;
-    std::vector<int> chunk_alignments;
+    std::vector<piper_word_alignment> chunk_words;
+    std::vector<int> word_weights;           // letters and digits of each word, at least 1
+    std::vector<int64_t> word_start_samples; // relative to the audio of the whole text, -1 before the word's first id
+    std::vector<int64_t> word_end_samples;
+    int64_t samples_done = 0;                // samples returned for the text so far
     float length_scale = DEFAULT_LENGTH_SCALE;
     float noise_scale = DEFAULT_NOISE_SCALE;
     float noise_w_scale = DEFAULT_NOISE_W_SCALE;
@@ -96,7 +102,7 @@ struct piper_synthesizer {
 };
 
 // Get the first UTF-8 codepoint of a string
-std::optional<Phoneme> get_codepoint(std::string s) {
+std::optional<Phoneme> get_codepoint(std::string_view s) {
     auto view = una::views::utf8(s);
     auto it = view.begin();
 
